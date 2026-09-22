@@ -170,7 +170,8 @@ def test_max_files_rlimit() -> None:
     def fn() -> None:
         fds: list[int] = []
         try:
-            fds.extend(os.open("/dev/null", os.O_RDONLY) for _ in range(64))
+            while len(fds) < 64:
+                fds.append(os.open("/dev/null", os.O_RDONLY))
             print("opened all")
         except OSError as exc:
             print("failed", exc.errno)
