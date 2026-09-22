@@ -1,9 +1,13 @@
 # SPDX-License-Identifier: 0BSD
 
-import pytest
-
 import sandboxkit
-from sandboxkit import Greeter
+from sandboxkit import (
+    Namespace,
+    Result,
+    RLimits,
+    SandboxError,
+    UnsupportedError,
+)
 
 
 def test_version_format() -> None:
@@ -13,10 +17,41 @@ def test_version_format() -> None:
     assert int(patch) >= 0
 
 
-def test_greet() -> None:
-    assert Greeter().greet("quad4") == "hello quad4"
+def test_public_exports() -> None:
+    assert sandboxkit.__all__ == [
+        "Namespace",
+        "RLimits",
+        "Result",
+        "Sandbox",
+        "SandboxError",
+        "UnsupportedError",
+        "__version__",
+        "userns_available",
+    ]
 
 
-def test_greet_rejects_empty_name() -> None:
-    with pytest.raises(ValueError, match="empty"):
-        Greeter().greet("")
+def test_errors_are_oserror() -> None:
+    assert issubclass(SandboxError, OSError)
+    assert issubclass(UnsupportedError, SandboxError)
+
+
+def test_result_defaults() -> None:
+    result = Result(ok=True, returncode=0)
+    assert result.errno == 0
+    assert result.signal == 0
+    assert not result.timed_out
+    assert result.stdout == b""
+    assert result.stderr == b""
+
+
+def test_namespace_values() -> None:
+    assert int(Namespace.MOUNT) == 0x00020000
+    assert int(Namespace.USER) == 0x10000000
+    assert int(Namespace.NET) == 0x40000000
+    assert int(Namespace.NONE) == 0
+
+
+def test_rlimits_types() -> None:
+    limits = RLimits(cpu_seconds=5)
+    assert limits.cpu_seconds == 5
+    assert limits.memory_bytes is None
