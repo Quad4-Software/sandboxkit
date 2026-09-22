@@ -25,9 +25,9 @@ Quad4 template for dependency-free typed Python libraries.
 2. Rename the package:
 
    ```sh
-   mv src/packagename src/mypkg
-   mv tests/test_packagename.py tests/test_mypkg.py
-   grep -rl packagename . | xargs sed -i 's/packagename/mypkg/g'
+   mv src/sandboxkit src/mypkg
+   mv tests/test_sandboxkit.py tests/test_mypkg.py
+   grep -rl sandboxkit . | xargs sed -i 's/sandboxkit/mypkg/g'
    ```
 
 3. Update `pyproject.toml`: description, keywords, classifiers, repository URL.

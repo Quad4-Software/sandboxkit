@@ -7,7 +7,7 @@ before opening the API. Link external references here.
 
 from __future__ import annotations
 
-from packagename.core import Greeter
+from sandboxkit.core import Greeter
 
 __version__ = "0.1.0"
 
