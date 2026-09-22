@@ -26,6 +26,7 @@ def test_public_exports() -> None:
         "SandboxError",
         "UnsupportedError",
         "__version__",
+        "namespaces_supported",
         "userns_available",
     ]
 

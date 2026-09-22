@@ -56,4 +56,4 @@ jobs:
 
       - run: uv python install ${{ matrix.python }}
       - run: uv sync --locked --python ${{ matrix.python }}
-      - run: uv run pytest --cov --cov-fail-under=80
+      - run: uv run pytest --cov

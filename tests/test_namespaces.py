@@ -8,13 +8,14 @@ from pathlib import Path
 
 import pytest
 
-from sandboxkit import Sandbox
+from sandboxkit import Namespace, Sandbox
 
-from .conftest import requires_userns
+from .conftest import requires_ns
 
-pytestmark = [pytest.mark.userns, requires_userns]
+pytestmark = [pytest.mark.userns]
 
 
+@requires_ns(Namespace.USER)
 def test_uid_zero_inside() -> None:
     result = Sandbox().run(lambda: print(os.getuid(), os.getgid()))
     assert result.ok
@@ -25,24 +26,28 @@ def test_real_uid_preserved_outside() -> None:
     assert os.getuid() != 0
 
 
+@requires_ns(Namespace.PID)
 def test_pid_namespace() -> None:
     result = Sandbox().run(lambda: print(os.getpid()))
     assert result.ok
     assert result.stdout == b"1\n"
 
 
+@requires_ns(Namespace.UTS)
 def test_uts_hostname() -> None:
     result = Sandbox(hostname="sandboxed").run(lambda: print(socket.gethostname()))
     assert result.ok
     assert result.stdout == b"sandboxed\n"
 
 
+@requires_ns(Namespace.NET)
 def test_net_namespace_isolated() -> None:
     result = Sandbox().run(lambda: print(len(socket.if_nameindex())))
     assert result.ok
     assert result.stdout == b"1\n"  # only lo, and it is down
 
 
+@requires_ns(Namespace.NET)
 def test_net_namespace_no_route() -> None:
     def fn() -> None:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -60,6 +65,7 @@ def test_net_namespace_no_route() -> None:
     assert result.stdout.startswith(b"failed ")
 
 
+@requires_ns(Namespace.MOUNT | Namespace.PID)
 def test_mount_proc() -> None:
     def fn() -> None:
         status = Path("/proc/self/status").read_text()
@@ -72,6 +78,7 @@ def test_mount_proc() -> None:
     assert result.stdout == b"Pid:\t1\n"
 
 
+@requires_ns(Namespace.USER | Namespace.PID)
 def test_run_argv_sandboxed() -> None:
     result = Sandbox().run_argv(
         [sys.executable, "-c", "import os; print(os.getuid(), os.getpid())"]
@@ -80,12 +87,21 @@ def test_run_argv_sandboxed() -> None:
     assert result.stdout == b"0 1\n"
 
 
+@requires_ns(
+    Namespace.USER
+    | Namespace.MOUNT
+    | Namespace.PID
+    | Namespace.NET
+    | Namespace.IPC
+    | Namespace.UTS
+)
 def test_strict_mode_full_stack() -> None:
     result = Sandbox(strict=True).run(lambda: print("strict ok"))
     assert result.ok
     assert result.stdout == b"strict ok\n"
 
 
+@requires_ns(Namespace.IPC | Namespace.MOUNT)
 def test_ipc_namespace() -> None:
     def fn() -> None:
         shm = Path("/proc/sysvipc/shm")

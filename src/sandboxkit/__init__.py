@@ -18,7 +18,7 @@ https://docs.kernel.org/userspace-api/landlock.html
 from .errors import SandboxError, UnsupportedError
 from .flags import Namespace
 from .rlimits import RLimits
-from .sandbox import Result, Sandbox, userns_available
+from .sandbox import Result, Sandbox, namespaces_supported, userns_available
 
 __version__ = "0.1.0"
 
@@ -30,5 +30,6 @@ __all__ = [
     "SandboxError",
     "UnsupportedError",
     "__version__",
+    "namespaces_supported",
     "userns_available",
 ]

@@ -44,7 +44,7 @@ from .errors import SandboxError, UnsupportedError
 from .flags import Namespace
 from .rlimits import RLimits
 
-__all__ = ["Result", "Sandbox", "userns_available"]
+__all__ = ["Result", "Sandbox", "namespaces_supported", "userns_available"]
 
 _KILL_GRACE = 5.0
 """Seconds to drain child pipes after a timeout kill."""
@@ -498,6 +498,64 @@ def userns_available() -> bool:
     os.close(ack_w)
     _, status = os.waitpid(pid, 0)
     return ok and os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0
+
+
+def namespaces_supported() -> Namespace:
+    """Probe which namespaces this kernel lets the caller unshare.
+
+    Uses the same path Sandbox takes: a child unshares CLONE_NEWUSER,
+    the parent writes the id maps, then the child tries every other
+    CLONE_NEW* flag. Returns the set that applied; Namespace.NONE means
+    even the user namespace failed. Kernels may allow USER but refuse
+    the rest, for example under Ubuntu's AppArmor restrictions.
+    """
+    ctl_r, ctl_w = os.pipe()
+    ack_r, ack_w = os.pipe()
+    res_r, res_w = os.pipe()
+    try:
+        pid = os.fork()
+    except OSError:
+        for fd in (ctl_r, ctl_w, ack_r, ack_w, res_r, res_w):
+            with contextlib.suppress(OSError):
+                os.close(fd)
+        raise
+    if pid == 0:
+        applied = 0
+        try:
+            os.close(ctl_r)
+            os.close(ack_w)
+            os.close(res_r)
+            _syscall.unshare(int(Namespace.USER))
+            os.write(ctl_w, b"1")
+            if os.read(ack_r, 1) == b"0":
+                applied = int(Namespace.USER)
+                for ns in _UNSHARE_ORDER:
+                    with contextlib.suppress(OSError):
+                        _syscall.unshare(int(ns))
+                        applied |= int(ns)
+            os.write(res_w, _proto.PIDMSG.pack(applied))
+        except BaseException:  # noqa: BLE001 - must not propagate in the child
+            os._exit(1)
+        os._exit(0)
+    os.close(ctl_w)
+    os.close(ack_r)
+    os.close(res_w)
+    ok = os.read(ctl_r, 1) == b"1"
+    ack = b"0"
+    if ok:
+        try:
+            _write_id_maps(pid, os.getuid(), os.getgid())
+        except OSError:
+            ack = b"1"
+    with contextlib.suppress(OSError):
+        os.write(ack_w, ack)
+    data = _read_exact(res_r, _proto.PIDMSG.size, time.monotonic() + _SETUP_CAP)[0]
+    applied = _proto.PIDMSG.unpack(data)[0] if len(data) == _proto.PIDMSG.size else 0
+    os.close(ctl_r)
+    os.close(ack_w)
+    os.close(res_r)
+    os.waitpid(pid, 0)
+    return Namespace(applied)
 
 
 def _keep_fd(fd: int) -> int:
