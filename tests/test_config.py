@@ -61,7 +61,7 @@ def test_rlimits_rejects_negative() -> None:
 
 
 def test_run_rejects_noncallable() -> None:
-    bad = cast("Callable[[], object]", "nope")
+    bad = cast(Callable[[], object], "nope")
     with pytest.raises(TypeError, match="callable"):
         Sandbox(namespaces=Namespace.NONE).run(bad)
 

@@ -17,13 +17,14 @@ from types import SimpleNamespace
 
 import pytest
 
-import sandboxkit._syscall
 from sandboxkit import (
     Namespace,
     RLimits,
     Sandbox,
     SandboxError,
     UnsupportedError,
+    _syscall,
+    userns_available,
 )
 
 PLAIN = Sandbox(namespaces=Namespace.NONE)
@@ -167,11 +168,15 @@ def test_max_files_rlimit() -> None:
     sandbox = Sandbox(namespaces=Namespace.NONE, rlimits=RLimits(max_files=32))
 
     def fn() -> None:
+        fds: list[int] = []
         try:
-            _fds = [os.open("/dev/null", os.O_RDONLY) for _ in range(64)]
+            fds.extend(os.open("/dev/null", os.O_RDONLY) for _ in range(64))
             print("opened all")
         except OSError as exc:
             print("failed", exc.errno)
+        finally:
+            for fd in fds:
+                os.close(fd)
 
     result = sandbox.run(fn)
     assert result.ok
@@ -197,17 +202,17 @@ def test_leaked_grandchild_does_not_hang() -> None:
 def test_unshare_fallback_requires_x86_64(monkeypatch: pytest.MonkeyPatch) -> None:
     """The raw syscall fallback must not call the wrong number on other archs."""
     libc = SimpleNamespace(syscall=lambda *a: 0)
-    monkeypatch.setattr(sandboxkit._syscall, "_libc", libc)
+    monkeypatch.setattr(_syscall, "_libc", libc)
     monkeypatch.setattr(platform, "machine", lambda: "riscv64")
     with pytest.raises(UnsupportedError):
-        sandboxkit._syscall.unshare(0)
+        _syscall.unshare(0)
 
 
 def test_strict_unshare_failure_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_unshare(flags: int) -> None:
         raise OSError(errno.EPERM, "operation not permitted")
 
-    monkeypatch.setattr(sandboxkit._syscall, "unshare", fake_unshare)
+    monkeypatch.setattr(_syscall, "unshare", fake_unshare)
     sandbox = Sandbox(namespaces=Namespace.USER, strict=True)
     with pytest.raises(SandboxError) as excinfo:
         sandbox.run(lambda: None)
@@ -218,7 +223,7 @@ def test_degraded_namespace_notes_stderr(monkeypatch: pytest.MonkeyPatch) -> Non
     def fake_unshare(flags: int) -> None:
         raise OSError(errno.EPERM, "operation not permitted")
 
-    monkeypatch.setattr(sandboxkit._syscall, "unshare", fake_unshare)
+    monkeypatch.setattr(_syscall, "unshare", fake_unshare)
     sandbox = Sandbox(namespaces=Namespace.USER | Namespace.NET)
     result = sandbox.run(lambda: None)
     assert result.ok
@@ -227,4 +232,4 @@ def test_degraded_namespace_notes_stderr(monkeypatch: pytest.MonkeyPatch) -> Non
 
 
 def test_userns_available_returns_bool() -> None:
-    assert isinstance(sandboxkit.userns_available(), bool)
+    assert isinstance(userns_available(), bool)

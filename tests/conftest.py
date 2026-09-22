@@ -6,10 +6,11 @@ import landlockpy
 import pytest
 
 import sandboxkit
-from sandboxkit import Namespace
 
 SUPPORTED_NS = (
-    sandboxkit.namespaces_supported() if sys.platform == "linux" else Namespace.NONE
+    sandboxkit.namespaces_supported()
+    if sys.platform == "linux"
+    else sandboxkit.Namespace.NONE
 )
 
 requires_userns = pytest.mark.skipif(
@@ -22,7 +23,7 @@ requires_landlock = pytest.mark.skipif(
 )
 
 
-def requires_ns(ns: Namespace) -> pytest.MarkDecorator:
+def requires_ns(ns: sandboxkit.Namespace) -> pytest.MarkDecorator:
     """Skip when the full sandbox path cannot create the namespace."""
     return pytest.mark.skipif(
         (SUPPORTED_NS & ns) != ns, reason=f"namespaces unavailable: {ns}"
