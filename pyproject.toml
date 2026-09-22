@@ -15,11 +15,18 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: BSD License",
-    "Operating System :: OS Independent",
+    "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Security",
+    "Topic :: System :: Operating System Kernels :: Linux",
     "Typing :: Typed",
 ]
-dependencies = []
+dependencies = ["landlockpy>=0.1.1"]
 
 [project.urls]
 Homepage = "https://quad4.io"
@@ -84,7 +91,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "S603"]
+"tests/*" = ["S101", "S603", "T201"]
 
 [tool.mypy]
 strict = true
@@ -99,8 +106,15 @@ source = ["src/sandboxkit"]
 
 [tool.coverage.report]
 show_missing = true
+# Payload code executes post-fork and is invisible to coverage.py; 50 is
+# the honest floor for this package.
+fail_under = 50
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 xfail_strict = true
 filterwarnings = ["error"]
+markers = [
+    "userns: tests that need unprivileged user namespaces",
+    "landlock: tests that need kernel Landlock support",
+]
