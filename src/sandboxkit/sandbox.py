@@ -39,9 +39,12 @@ from typing import NoReturn
 
 import landlockpy
 
-from . import _proto, _syscall
+from . import _proto, _syscall, mounts
+from . import cgroups as _cgroups
+from .cgroups import CGroups
 from .errors import SandboxError, UnsupportedError
 from .flags import Namespace
+from .mounts import Mount
 from .rlimits import RLimits
 
 __all__ = ["Result", "Sandbox", "namespaces_supported", "userns_available"]
@@ -108,6 +111,20 @@ class Sandbox:
     timeout kills the whole sandbox tree after that many seconds of
     payload time. env replaces os.environ in the payload and cwd becomes
     its working directory.
+
+    cgroups takes a CGroups spec for cgroup v2 memory, pids, cpu and io
+    limits. The parent creates a leaf cgroup inside the caller's
+    delegated subtree and moves the sandbox process in before the
+    payload runs; children inherit membership. It needs unified cgroup
+    v2 and a writable delegation, which rootless sessions usually lack:
+    strict raises SandboxError, non-strict warns and skips the limits.
+
+    mounts takes Mount specs applied inside the payload's mount
+    namespace after it is made MS_PRIVATE, before env/cwd, rlimits and
+    Landlock. mounts and root require Namespace.MOUNT and any failure
+    aborts the sandbox. root pivots the payload into a caller-prepared
+    directory with pivot_root(2) after the mounts, so populate it with
+    bind Mounts whose targets live under it.
     """
 
     namespaces: Namespace = (
@@ -122,7 +139,10 @@ class Sandbox:
     hostname: str | None = None
     mount_proc: bool = False
     rlimits: RLimits | None = None
+    cgroups: CGroups | None = None
     landlock: landlockpy.Ruleset | None = None
+    mounts: Sequence[Mount] | None = None
+    root: str | None = None
     timeout: float | None = None
     capture: bool = True
     max_output: int = 1 << 20
@@ -135,6 +155,14 @@ class Sandbox:
             raise ValueError("hostname requires Namespace.UTS")
         if self.mount_proc and not self.namespaces & Namespace.MOUNT:
             raise ValueError("mount_proc requires Namespace.MOUNT")
+        if self.mounts is not None:
+            self.mounts = tuple(self.mounts)
+        if (self.mounts or self.root is not None) and not (
+            self.namespaces & Namespace.MOUNT
+        ):
+            raise ValueError("mounts and root require Namespace.MOUNT")
+        if self.root is not None and not Path(self.root).is_absolute():
+            raise ValueError("root must be an absolute path")
         if self.timeout is not None and self.timeout <= 0:
             raise ValueError("timeout must be positive")
         if self.max_output <= 0:
@@ -187,6 +215,9 @@ class Sandbox:
         if sys.platform != "linux":
             raise UnsupportedError("sandboxkit is only available on Linux")
         ruleset = self._effective_ruleset()
+        lease = (
+            _cgroups.create(self.cgroups, strict=self.strict) if self.cgroups else None
+        )
         _flush()  # keep the parent's buffered output out of the child's capture
         ctl_r, ctl_w = os.pipe()
         ack_r, ack_w = os.pipe()
@@ -210,6 +241,8 @@ class Sandbox:
             ):
                 with contextlib.suppress(OSError):
                     os.close(fd)
+            if lease is not None:
+                lease.cleanup()
             raise
         if pid == 0:
             _child(
@@ -229,7 +262,61 @@ class Sandbox:
                 os.close(fd)
         with contextlib.suppress(OSError):
             os.setpgid(pid, pid)
-        return self._parent(pid, ctl_r, ack_w, res_r, out_r, err_r)
+        if lease is not None:
+            lease = self._attach(pid, lease, (ctl_r, ack_w, res_r, out_r, err_r))
+        try:
+            return self._parent(pid, ctl_r, ack_w, res_r, out_r, err_r)
+        finally:
+            if lease is not None:
+                lease.cleanup()
+
+    def _attach(
+        self,
+        pid: int,
+        lease: _cgroups.Lease,
+        parent_fds: tuple[int, ...],
+    ) -> _cgroups.Lease | None:
+        """Move the sandbox child into its cgroup before the payload runs."""
+        try:
+            lease.attach(pid)
+        except OSError as exc:
+            self._attach_failed(pid, exc, parent_fds, lease)
+            return None
+        return lease
+
+    def _attach_failed(
+        self,
+        pid: int,
+        exc: OSError,
+        parent_fds: tuple[int, ...],
+        lease: _cgroups.Lease,
+    ) -> None:
+        """Handle a refused cgroup.procs write.
+
+        ESRCH just means the child finished first, so its own Result
+        carries the reason. Otherwise strict kills the child and raises;
+        non-strict warns and runs without the limits.
+        """
+        err = exc.errno or errno.EIO
+        lease.cleanup()
+        if err == errno.ESRCH:
+            return
+        if self.strict:
+            for fd in parent_fds:
+                with contextlib.suppress(OSError):
+                    os.close(fd)
+            with contextlib.suppress(OSError):
+                os.kill(pid, signal.SIGKILL)
+            with contextlib.suppress(OSError):
+                os.waitpid(pid, 0)
+            raise SandboxError(
+                err, f"cannot move pid {pid} into cgroup: {os.strerror(err)}"
+            ) from exc
+        warnings.warn(
+            f"cgroup limits skipped: cannot move pid into cgroup: {os.strerror(err)}",
+            RuntimeWarning,
+            stacklevel=3,
+        )
 
     def _parent(
         self, pid: int, ctl_r: int, ack_w: int, res_r: int, out_r: int, err_r: int
@@ -702,15 +789,39 @@ def _forward(payload_pid: int) -> NoReturn:
     os._exit(os.WEXITSTATUS(status) if os.WIFEXITED(status) else 1)
 
 
+def _payload_mounts(cfg: Sandbox, applied: int) -> None:
+    """Apply Mount specs, mount_proc and root inside the payload.
+
+    Runs only inside the mount namespace; requested mounts without it
+    are a fatal setup error, never a silent skip, because mounting on
+    the host filesystem must never happen.
+    """
+    if not applied & Namespace.MOUNT:
+        if cfg.mounts or cfg.root is not None:
+            raise SandboxError(
+                errno.EINVAL,
+                "mounts/root requested but the mount namespace is unavailable",
+            )
+        if cfg.mount_proc:
+            _note("mount_proc skipped: mount namespace unavailable")
+        return
+    if cfg.mounts or cfg.mount_proc or cfg.root is not None:
+        # Without this, mounts under a shared peer group would
+        # propagate back to the host mount table.
+        mounts.make_private()
+    for spec in cfg.mounts or ():
+        spec.apply()
+    if cfg.mount_proc:
+        _syscall.mount("proc", "/proc", "proc")
+    if cfg.root is not None:
+        mounts.pivot_root(cfg.root)
+
+
 def _payload_setup(
     cfg: Sandbox, ruleset: landlockpy.Ruleset | None, applied: int
 ) -> None:
-    """Apply mount/env/cwd/rlimits/Landlock inside the payload process."""
-    if cfg.mount_proc:
-        if applied & Namespace.MOUNT:
-            _syscall.mount("proc", "/proc", "proc")
-        else:
-            _note("mount_proc skipped: mount namespace unavailable")
+    """Apply mounts/root/env/cwd/rlimits/Landlock inside the payload."""
+    _payload_mounts(cfg, applied)
     if cfg.env is not None:
         os.environ.clear()
         os.environ.update(cfg.env)

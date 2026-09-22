@@ -47,6 +47,30 @@ result = sandbox.run(lambda: print("running as uid", __import__("os").getuid()))
   /proc, `timeout=` kills the whole sandbox tree.
 - `namespaces_supported()` probes which namespaces this kernel actually
   lets the caller create; `userns_available()` checks the USER path.
+- `cgroups=` applies cgroup v2 limits when the caller has a writable
+  delegation (a systemd `Delegate=yes` unit or root). The parent
+  creates a leaf cgroup, enables controllers and moves the sandbox
+  process in before the payload runs; `cgroups_supported()` probes it.
+- `mounts=` applies `Mount` specs inside the payload's mount namespace
+  and `root=` pivots it into a prepared directory. Both require
+  `Namespace.MOUNT` (on by default); any mount failure is fatal.
+
+```python
+from sandboxkit import CGroups, Mount, Sandbox
+
+# cgroup v2 limits (needs a delegated writable cgroup)
+Sandbox(cgroups=CGroups(memory_max=128 << 20, pids_max=32))
+
+# mounts inside the payload, then pivot into a prepared rootfs
+Sandbox(
+    mounts=[
+        Mount.bind("/usr", "/rootfs/usr", readonly=True, recursive=True),
+        Mount.tmpfs("/scratch", size="32m"),
+        Mount.proc(),
+    ],
+    root="/rootfs",
+)
+```
 
 ## Documentation
 
