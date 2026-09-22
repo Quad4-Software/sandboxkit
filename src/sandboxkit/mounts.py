@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: 0BSD
 """Mount specs applied inside the payload's mount namespace.
 
-Mount describes one mount(2) operation; the bind(), tmpfs(), proc()
+Mount describes one mount(2) operation. The bind(), tmpfs(), proc()
 and sysfs() constructors cover the common sandbox cases. All mounts
 run inside the payload after its mount namespace exists, so the host
 mount table is never touched directly. The namespace mounts are made
@@ -11,7 +11,7 @@ propagate back to the parent mount namespace.
 pivot_root() rotates a caller-prepared directory to / and detaches
 the old root.
 
-Flag values come from linux/mount.h; umount flags from sys/mount.h.
+Flag values come from linux/mount.h, umount flags from sys/mount.h.
 
 References:
 https://man7.org/linux/man-pages/man2/mount.2.html
@@ -45,9 +45,9 @@ MNT_DETACH = 2
 class Mount:
     """One mount(2) operation for the payload's mount namespace.
 
-    target is the mount point; it must be an absolute path that already
+    target is the mount point. It must be an absolute path that already
     exists in the filesystem the payload sees. A spec with a source and
-    no fstype is a bind mount; recursive makes it an rbind. With fstype
+    no fstype is a bind mount. recursive makes it an rbind. With fstype
     set it is a filesystem mount and source is its backing device or
     name, defaulting to fstype. readonly, nosuid, nodev and noexec map
     to the MS_* mount flags. options is the filesystem-specific data
@@ -187,7 +187,7 @@ class Mount:
     def apply(self) -> None:
         """Perform the mount in the calling (payload) process.
 
-        Raises OSError with the mount(2) errno on failure; callers
+        Raises OSError with the mount(2) errno on failure. Callers
         treat any failure as fatal to the sandbox.
         """
         data = os.fsencode(self.options) if self.options is not None else None

@@ -106,7 +106,7 @@ source = ["src/sandboxkit"]
 
 [tool.coverage.report]
 show_missing = true
-# Payload code executes post-fork and is invisible to coverage.py; 50 is
+# Payload code executes post-fork and is invisible to coverage.py. 50 is
 # the honest floor for this package.
 fail_under = 50
 

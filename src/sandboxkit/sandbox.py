@@ -115,7 +115,7 @@ class Sandbox:
     cgroups takes a CGroups spec for cgroup v2 memory, pids, cpu and io
     limits. The parent creates a leaf cgroup inside the caller's
     delegated subtree and moves the sandbox process in before the
-    payload runs; children inherit membership. It needs unified cgroup
+    payload runs. Children inherit membership. It needs unified cgroup
     v2 and a writable delegation, which rootless sessions usually lack:
     strict raises SandboxError, non-strict warns and skips the limits.
 
@@ -294,8 +294,8 @@ class Sandbox:
         """Handle a refused cgroup.procs write.
 
         ESRCH just means the child finished first, so its own Result
-        carries the reason. Otherwise strict kills the child and raises;
-        non-strict warns and runs without the limits.
+        carries the reason. Otherwise strict kills the child and raises.
+        Non-strict warns and runs without the limits.
         """
         err = exc.errno or errno.EIO
         lease.cleanup()
@@ -592,7 +592,7 @@ def namespaces_supported() -> Namespace:
 
     Uses the same path Sandbox takes: a child unshares CLONE_NEWUSER,
     the parent writes the id maps, then the child tries every other
-    CLONE_NEW* flag. Returns the set that applied; Namespace.NONE means
+    CLONE_NEW* flag. Returns the set that applied. Namespace.NONE means
     even the user namespace failed. Kernels may allow USER but refuse
     the rest, for example under Ubuntu's AppArmor restrictions.
     """
@@ -792,7 +792,7 @@ def _forward(payload_pid: int) -> NoReturn:
 def _payload_mounts(cfg: Sandbox, applied: int) -> None:
     """Apply Mount specs, mount_proc and root inside the payload.
 
-    Runs only inside the mount namespace; requested mounts without it
+    Runs only inside the mount namespace. Requested mounts without it
     are a fatal setup error, never a silent skip, because mounting on
     the host filesystem must never happen.
     """

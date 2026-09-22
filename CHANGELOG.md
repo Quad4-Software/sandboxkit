@@ -16,8 +16,8 @@
   Mount dataclass with readonly/nosuid/nodev/noexec flags and an
   options string. Readonly binds use the documented bind+remount
   two-step. Mounts run after the namespace is made MS_PRIVATE so they
-  cannot propagate to the host, before env/cwd, rlimits and Landlock;
-  any mount failure aborts the sandbox.
+  cannot propagate to the host, before env/cwd, rlimits and Landlock.
+  Any mount failure aborts the sandbox.
 - root= pivots the payload into a caller-prepared directory via
   pivot_root(2), detaching the old root with umount2(MNT_DETACH).
 - mounts= and root= require Namespace.MOUNT, matching the existing

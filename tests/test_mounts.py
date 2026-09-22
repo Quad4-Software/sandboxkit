@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: 0BSD
 """Tests for Mount specs and in-namespace filesystem isolation.
 
-The integration tests need user+mount namespaces; the payload mounts
+The integration tests need user+mount namespaces. The payload mounts
 run inside the sandbox mount namespace, so nothing touches the host
 mount table.
 """

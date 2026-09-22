@@ -4,14 +4,14 @@
 The parent creates a leaf cgroup inside the caller's delegated
 subtree, enables the needed controllers, writes the limit interface
 files and moves the sandbox child in before the payload runs. Only
-the unified cgroup v2 hierarchy is supported; v1 setups raise
+the unified cgroup v2 hierarchy is supported. v1 setups raise
 UnsupportedError.
 
 Rootless reality: migrating a process needs write access to the
 target cgroup.procs and to the cgroup.procs of the common ancestor
 of source and target, so only cgroups under a writable ancestor of
 the caller's own cgroup qualify. A systemd unit started with
-Delegate=yes provides one; a plain login session usually does not.
+Delegate=yes provides one. A plain login session usually does not.
 
 Only the documented core interface files are used: memory.max,
 memory.high, pids.max, cpu.max, cpu.weight and io.weight.
@@ -55,7 +55,7 @@ _FILE_CONTROLLER = {
 class CGroups:
     """cgroup v2 limits for the sandboxed process tree.
 
-    Each field maps to one cgroup v2 interface file; None leaves it
+    Each field maps to one cgroup v2 interface file. None leaves it
     unwritten. cpu_max is the cpu.max quota/period pair, given either
     as the literal file content ("50000 100000" or "max 100000") or as
     a (quota, period) tuple where quota is an int or "max". cpu_weight
@@ -140,7 +140,7 @@ def _current_cgroup(proc_file: Path = PROC_SELF_CGROUP) -> str:
 def _delegated_dir(root: Path, rel: str) -> Path | None:
     """Deepest cgroup on the caller's own path usable as a parent.
 
-    Creating a leaf needs write access on the directory; migrating a
+    Creating a leaf needs write access on the directory. Migrating a
     process into it needs write access on its cgroup.procs, because the
     kernel checks the file on both target and common ancestor.
     """
@@ -175,7 +175,7 @@ def cgroups_supported(
 
 
 class Lease:
-    """A created leaf cgroup; cleanup() removes it best effort."""
+    """A created leaf cgroup. cleanup() removes it best effort."""
 
     __slots__ = ("_path",)
 
@@ -187,7 +187,7 @@ class Lease:
         return self._path
 
     def attach(self, pid: int) -> None:
-        """Move pid into the cgroup; forked descendants inherit it."""
+        """Move pid into the cgroup. Forked descendants inherit it."""
         self._path.joinpath("cgroup.procs").write_text(f"{pid}\n")
 
     def cleanup(self) -> None:

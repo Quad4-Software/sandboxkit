@@ -71,7 +71,7 @@ def mount(
     flags: int = 0,
     data: bytes | None = None,
 ) -> None:
-    """Mount a filesystem; None source or fstype passes NULL to mount(2)."""
+    """Mount a filesystem. None source or fstype passes NULL to mount(2)."""
     ret = int(
         _get_libc().mount(
             None if source is None else os.fsencode(source),

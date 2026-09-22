@@ -153,7 +153,7 @@ def test_create_writes_limits(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     lease.attach(os.getpid())
     assert lease.path.joinpath("cgroup.procs").read_text() == f"{os.getpid()}\n"
     lease.cleanup()
-    # The kill write landed; rmdir is suppressed because the fixture
+    # The kill write landed. rmdir is suppressed because the fixture
     # files are real files, unlike cgroupfs interface files.
     assert (lease.path / "cgroup.kill").read_text() == "1"
 
