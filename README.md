@@ -44,6 +44,8 @@ result = sandbox.run(lambda: print("running as uid", __import__("os").getuid()))
   restricted in the payload only, so the object stays usable.
 - `hostname=` sets the UTS hostname, `mount_proc=True` mounts a fresh
   /proc, `timeout=` kills the whole sandbox tree.
+- `namespaces_supported()` probes which namespaces this kernel actually
+  lets the caller create; `userns_available()` checks the USER path.
 
 ## Documentation
 
