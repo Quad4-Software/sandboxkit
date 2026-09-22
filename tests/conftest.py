@@ -22,6 +22,11 @@ requires_landlock = pytest.mark.skipif(
     landlockpy.abi_version() < 1, reason="kernel does not support Landlock"
 )
 
+requires_cgroups = pytest.mark.skipif(
+    not sandboxkit.cgroups_supported(),
+    reason="no writable cgroup v2 delegation",
+)
+
 
 def requires_ns(ns: sandboxkit.Namespace) -> pytest.MarkDecorator:
     """Skip when the full sandbox path cannot create the namespace."""

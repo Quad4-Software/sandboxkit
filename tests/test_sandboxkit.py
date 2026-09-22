@@ -12,6 +12,8 @@ def test_version_format() -> None:
 
 def test_public_exports() -> None:
     assert sandboxkit.__all__ == [
+        "CGroups",
+        "Mount",
         "Namespace",
         "RLimits",
         "Result",
@@ -19,6 +21,7 @@ def test_public_exports() -> None:
         "SandboxError",
         "UnsupportedError",
         "__version__",
+        "cgroups_supported",
         "namespaces_supported",
         "userns_available",
     ]
