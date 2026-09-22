@@ -3,6 +3,7 @@
 [![CI](https://github.com/Quad4-Software/sandboxkit/actions/workflows/ci.yml/badge.svg)](https://github.com/Quad4-Software/sandboxkit/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/Quad4-Software/sandboxkit/actions/workflows/codeql.yml/badge.svg)](https://github.com/Quad4-Software/sandboxkit/actions/workflows/codeql.yml)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/Quad4-Software/sandboxkit/badge)](https://securityscorecards.dev/viewer/?uri=github.com/Quad4-Software/sandboxkit)
+[![PyPI](https://img.shields.io/pypi/v/sandboxkit.svg)](https://pypi.org/project/sandboxkit/)
 [![License: 0BSD](https://img.shields.io/badge/license-0BSD-blue)](LICENSE)
 
 Sandboxed code execution on Linux. Run a Python callable in a forked
