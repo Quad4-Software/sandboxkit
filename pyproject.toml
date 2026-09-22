@@ -1,0 +1,106 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "packagename"
+dynamic = ["version"]
+description = "Short package description"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "0BSD"
+authors = [{ name = "Quad4" }]
+keywords = []
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Typing :: Typed",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://quad4.io"
+Repository = "https://github.com/Quad4-Software/python-library-template"
+Issues = "https://github.com/Quad4-Software/python-library-template/issues"
+Changelog = "https://github.com/Quad4-Software/python-library-template/blob/master/CHANGELOG.md"
+
+[tool.hatch.version]
+path = "src/packagename/__init__.py"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.16.8",
+    "bandit>=1.9.4",
+    "mypy>=2.3.1",
+]
+
+[tool.ruff]
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # isort
+    "N",        # pep8-naming
+    "UP",       # pyupgrade
+    "YTT",      # sys.version misuse
+    "FA",       # future annotations
+    "A",        # builtins shadowing
+    "B",        # flake8-bugbear
+    "BLE",      # blind except
+    "C4",       # comprehensions
+    "C90",      # mccabe complexity
+    "DTZ",      # timezone-aware datetimes
+    "ERA",      # commented-out code
+    "FURB",     # refurb
+    "G",        # logging format
+    "ICN",      # import conventions
+    "ISC",      # implicit string concat
+    "LOG",      # logging
+    "PERF",     # perflint
+    "PGH",      # pygrep hooks
+    "PIE",      # misc lints
+    "PT",       # pytest style
+    "PTH",      # pathlib
+    "RET",      # return
+    "RSE",      # raise/return
+    "S",        # bandit rules
+    "SIM",      # simplify
+    "SLOT",     # __slots__
+    "T20",      # print
+    "TRY",      # exception handling
+    "RUF",      # ruff-specific
+]
+ignore = [
+    "ISC001",  # single-line implicit concat conflicts with the formatter
+    "TRY003",  # long messages in raise calls are fine
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "S603"]
+
+[tool.mypy]
+strict = true
+files = ["src", "tests"]
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["src/packagename"]
+
+[tool.coverage.report]
+show_missing = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+xfail_strict = true
+filterwarnings = ["error"]
