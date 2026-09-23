@@ -56,4 +56,24 @@ jobs:
 
       - run: uv python install ${{ matrix.python }}
       - run: uv sync --locked --python ${{ matrix.python }}
-      - run: uv run pytest --cov
+
+      - name: Enable unprivileged user namespaces
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          sudo sysctl -w user.max_user_namespaces=15000
+
+      - name: Delegate a writable cgroup v2 subtree
+        run: |
+          echo "+cpu +memory +pids" | sudo tee /sys/fs/cgroup/cgroup.subtree_control
+          sudo mkdir -p /sys/fs/cgroup/q4ci/workload
+          echo "+cpu +memory +pids" | sudo tee /sys/fs/cgroup/q4ci/cgroup.subtree_control
+          sudo chown -R "$(id -u):$(id -g)" /sys/fs/cgroup/q4ci
+          sudo chmod a-w /sys/fs/cgroup/q4ci/workload /sys/fs/cgroup/q4ci/workload/*
+
+      - name: Test inside the delegated cgroup
+        run: |
+          echo $$ | sudo tee /sys/fs/cgroup/q4ci/workload/cgroup.procs
+          Q4_REQUIRE_LIVE=1 uv run pytest --cov -rs
+
+      - name: Test cgroup-unavailable paths
+        run: uv run pytest tests/test_cgroups.py -k unavailable -rs
